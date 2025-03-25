@@ -18,6 +18,7 @@
       font-family: monospace;
       font-size: 16px;
       border-left: 4px solid #00ffcc;
+      z-index: 10;
     }
     #overlay2 {
       position: absolute;
@@ -29,6 +30,7 @@
       font-family: monospace;
       font-size: 16px;
       border-left: 4px solid #ff00ff;
+      z-index: 10;
     }
     #theory-overlay {
       position: absolute;
@@ -41,6 +43,7 @@
       font-size: 14px;
       border-right: 4px solid #00ffcc;
       max-width: 300px;
+      z-index: 10;
     }
     #stats-overlay {
       position: absolute;
@@ -52,6 +55,7 @@
       font-family: monospace;
       font-size: 14px;
       border-left: 4px solid #00ffcc;
+      z-index: 10;
     }
     #theory-select {
       margin-top: 10px;
@@ -61,57 +65,47 @@
       padding: 5px;
       font-family: monospace;
     }
-    #zoom-buttons {
+    .button-container {
       position: absolute;
       bottom: 20px;
-      left: 20px;
-      font-family: monospace;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 20px;
+      z-index: 10;
     }
-    #zoom-buttons button {
-      background: #00ffcc;
-      color: black;
-      border: none;
-      padding: 10px 20px;
-      margin-right: 5px;
-      cursor: pointer;
+    .button-group {
+      display: flex;
+      gap: 5px;
     }
-    #mode-toggle {
-      position: absolute;
-      bottom: 20px;
-      left: 220px;
-      font-family: monospace;
-    }
-    #mode-toggle button {
-      background: #666;
-      color: #00ffcc;
-      border: 1px solid #00ffcc;
-      padding: 10px 20px;
-      cursor: pointer;
-    }
-    #filter-buttons {
-      position: absolute;
-      bottom: 20px;
-      left: 350px;
-      color: #00ffcc;
-      font-family: monospace;
-    }
-    #filter-buttons button {
+    button {
       background: #333;
       color: #00ffcc;
       border: 1px solid #00ffcc;
-      padding: 5px 10px;
-      margin-right: 5px;
+      padding: 10px 15px;
+      font-family: monospace;
       cursor: pointer;
+      font-size: 14px;
+    }
+    button.primary {
+      background: #00ffcc;
+      color: black;
+    }
+    button.secondary {
+      background: #ff00ff;
+      color: black;
     }
     #legend {
       position: absolute;
-      bottom: 20px;
+      bottom: 70px;
       right: 20px;
       color: #00ffcc;
       background: rgba(0, 0, 0, 0.7);
       padding: 10px;
       font-family: monospace;
       font-size: 14px;
+      z-index: 10;
     }
     #tooltip {
       position: absolute;
@@ -122,6 +116,7 @@
       font-size: 12px;
       pointer-events: none;
       display: none;
+      z-index: 20;
     }
     .label {
       position: absolute;
@@ -129,6 +124,7 @@
       font-family: monospace;
       font-size: 12px;
       pointer-events: none;
+      z-index: 5;
     }
   </style>
 </head>
@@ -149,7 +145,7 @@
   </div>
   <div id="theory-overlay">
     <strong>Theoretische Erklärungen</strong><br>
-    <select id="theory-select" onchange="updateTheory()">
+    <select id="theory-select">
       <option value="rotating_universe">Rotierendes Universum</option>
       <option value="observation_bias">Beobachtungsvoreingenommenheit</option>
       <option value="black_hole_cosmology">Schwarze-Loch-Kosmologie</option>
@@ -168,18 +164,22 @@
     Counterclockwise: <span id="ccw-count">0</span><br>
     Asymmetrie: <span id="asymmetry">0</span>
   </div>
-  <div id="zoom-buttons">
-    <button onclick="zoomToOrigin(1)">Zoom to Ω-Zentrum 1</button>
-    <button onclick="zoomToOrigin(2)" style="background: #ff00ff;">Zoom to Ω-Zentrum 2</button>
+  
+  <div class="button-container">
+    <div class="button-group">
+      <button id="zoom1-btn" class="primary">Zoom to Ω-Zentrum 1</button>
+      <button id="zoom2-btn" class="secondary">Zoom to Ω-Zentrum 2</button>
+    </div>
+    <div class="button-group">
+      <button id="mode-btn">Mode: <span id="mode-label">Real Data</span></button>
+    </div>
+    <div class="button-group">
+      <button id="filter-all">Alle</button>
+      <button id="filter-cw">Clockwise</button>
+      <button id="filter-ccw">Counterclockwise</button>
+    </div>
   </div>
-  <div id="mode-toggle">
-    <button onclick="toggleMode()">Mode: <span id="mode-label">Real Data</span></button>
-  </div>
-  <div id="filter-buttons">
-    <button onclick="filterGalaxies('all')">Alle</button>
-    <button onclick="filterGalaxies('clockwise')">Clockwise</button>
-    <button onclick="filterGalaxies('counterclockwise')">Counterclockwise</button>
-  </div>
+  
   <div id="legend">
     <strong>Legende</strong><br>
     <span style="color: #00f;">Blau</span>: Clockwise<br>
@@ -190,7 +190,7 @@
   </div>
   <div id="tooltip"></div>
   <script>
-    // Theoretische Erklärungen - Moved to the top of the script
+    // Theoretische Erklärungen
     const theories = {
       rotating_universe: {
         description: "Das Universum selbst besitzt eine Netto-Rotation, die die Spinrichtungen von Galaxien beeinflusst.",
@@ -849,6 +849,7 @@
       const zoomAnimation = () => {
         t += 0.02;
         camera.position.lerpVectors(startPosition, targetPosition, t);
+        controls.target.copy(center === 1 ? originPoint1.position : originPoint2.position);
         if (t < 1) requestAnimationFrame(zoomAnimation);
       };
       zoomAnimation();
@@ -907,6 +908,15 @@
       const theory = theories[select.value];
       descriptionDiv.innerHTML = `${theory.description}<br><strong>Plausibilität:</strong> ${theory.plausibility}`;
     }
+
+    // Event-Listener für Buttons einrichten
+    document.getElementById('zoom1-btn').addEventListener('click', () => zoomToOrigin(1));
+    document.getElementById('zoom2-btn').addEventListener('click', () => zoomToOrigin(2));
+    document.getElementById('mode-btn').addEventListener('click', toggleMode);
+    document.getElementById('filter-all').addEventListener('click', () => filterGalaxies('all'));
+    document.getElementById('filter-cw').addEventListener('click', () => filterGalaxies('clockwise'));
+    document.getElementById('filter-ccw').addEventListener('click', () => filterGalaxies('counterclockwise'));
+    document.getElementById('theory-select').addEventListener('change', updateTheory);
 
     // Fenstergröße anpassen
     window.addEventListener('resize', () => {
