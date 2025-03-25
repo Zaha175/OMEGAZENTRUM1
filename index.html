@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ω-Zentren | Ursprungspunkte der Spin-Asymmetrie</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; background: black; }
+    #overlay {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      color: #00ffcc;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 12px 18px;
+      font-family: monospace;
+      font-size: 16px;
+      border-left: 4px solid #00ffcc;
+    }
+    #overlay2 {
+      position: absolute;
+      top: 120px;
+      left: 20px;
+      color: #ff00ff;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 12px 18px;
+      font-family: monospace;
+      font-size: 16px;
+      border-left: 4px solid #ff00ff;
+    }
+    #theory-overlay {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      color: #00ffcc;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 12px 18px;
+      font-family: monospace;
+      font-size: 14px;
+      border-right: 4px solid #00ffcc;
+      max-width: 300px;
+    }
+    #stats-overlay {
+      position: absolute;
+      top: 220px;
+      left: 20px;
+      color: #00ffcc;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 12px 18px;
+      font-family: monospace;
+      font-size: 14px;
+      border-left: 4px solid #00ffcc;
+    }
+    #theory-select {
+      margin-top: 10px;
+      background: #333;
+      color: #00ffcc;
+      border: 1px solid #00ffcc;
+      padding: 5px;
+      font-family: monospace;
+    }
+    #zoom-buttons {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      font-family: monospace;
+    }
+    #zoom-buttons button {
+      background: #00ffcc;
+      color: black;
+      border: none;
+      padding: 10px 20px;
+      margin-right: 5px;
+      cursor: pointer;
+    }
+    #mode-toggle {
+      position: absolute;
+      bottom: 20px;
+      left: 220px;
+      font-family: monospace;
+    }
+    #mode-toggle button {
+      background: #666;
+      color: #00ffcc;
+      border: 1px solid #00ffcc;
+      padding: 10px 20px;
+      cursor: pointer;
+    }
+    #filter-buttons {
+      position: absolute;
+      bottom: 20px;
+      left: 350px;
+      color: #00ffcc;
+      font-family: monospace;
+    }
+    #filter-buttons button {
+      background: #333;
+      color: #00ffcc;
+      border: 1px solid #00ffcc;
+      padding: 5px 10px;
+      margin-right: 5px;
+      cursor: pointer;
+    }
+    #legend {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      color: #00ffcc;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    #tooltip {
+      position: absolute;
+      color: #00ffcc;
+      background: rgba(0, 0, 0, 0.9);
+      padding: 5px 10px;
+      font-family: monospace;
+      font-size: 12px;
+      pointer-events: none;
+      display: none;
+    }
+    .label {
+      position: absolute;
+      color: #ffff00;
+      font-family: monospace;
+      font-size: 12px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay">
+    <strong>Ω-Zentrum 1</strong><br>
+    Ursprungspunkt der galaktischen Spin-Asymmetrie<br>
+    RA: 159.7°<br>
+    DEC: +9.24°<br>
+    Sternbild: Löwe 🦁
+  </div>
+  <div id="overlay2">
+    <strong>Ω-Zentrum 2 (Shamir)</strong><br>
+    Vergleichspunkt<br>
+    RA: 30°<br>
+    DEC: -15°<br>
+    Region: Eridanus
+  </div>
+  <div id="theory-overlay">
+    <strong>Theoretische Erklärungen</strong><br>
+    <select id="theory-select" onchange="updateTheory()">
+      <option value="rotating_universe">Rotierendes Universum</option>
+      <option value="observation_bias">Beobachtungsvoreingenommenheit</option>
+      <option value="black_hole_cosmology">Schwarze-Loch-Kosmologie</option>
+      <option value="primordial_rotation">Primordiale Rotation</option>
+      <option value="simulation">Algorithmischer Ursprung (Simulation)</option>
+      <option value="exotic">Exotische Phänomene</option>
+    </select>
+    <div id="theory-description">
+      Das Universum selbst besitzt eine Netto-Rotation, die die Spinrichtungen von Galaxien beeinflusst.<br>
+      <strong>Plausibilität:</strong> Mittel
+    </div>
+  </div>
+  <div id="stats-overlay">
+    <strong>Statistik</strong><br>
+    Clockwise: <span id="cw-count">0</span><br>
+    Counterclockwise: <span id="ccw-count">0</span><br>
+    Asymmetrie: <span id="asymmetry">0</span>
+  </div>
+  <div id="zoom-buttons">
+    <button onclick="zoomToOrigin(1)">Zoom to Ω-Zentrum 1</button>
+    <button onclick="zoomToOrigin(2)" style="background: #ff00ff;">Zoom to Ω-Zentrum 2</button>
+  </div>
+  <div id="mode-toggle">
+    <button onclick="toggleMode()">Mode: <span id="mode-label">Real Data</span></button>
+  </div>
+  <div id="filter-buttons">
+    <button onclick="filterGalaxies('all')">Alle</button>
+    <button onclick="filterGalaxies('clockwise')">Clockwise</button>
+    <button onclick="filterGalaxies('counterclockwise')">Counterclockwise</button>
+  </div>
+  <div id="legend">
+    <strong>Legende</strong><br>
+    <span style="color: #00f;">Blau</span>: Clockwise<br>
+    <span style="color: #f00;">Rot</span>: Counterclockwise<br>
+    <span style="color: #ff0;">Gelb</span>: Deep-Sky-Objekte<br>
+    <span style="color: #0ff;">Cyan</span>: Ω-Zentrum 1<br>
+    <span style="color: #f0f;">Magenta</span>: Ω-Zentrum 2
+  </div>
+  <div id="tooltip"></div>
+  <script>
+    // Theoretische Erklärungen - Moved to the top of the script
+    const theories = {
+      rotating_universe: {
+        description: "Das Universum selbst besitzt eine Netto-Rotation, die die Spinrichtungen von Galaxien beeinflusst.",
+        plausibility: "Mittel"
+      },
+      observation_bias: {
+        description: "Die Rotation der Milchstraße führt zu Verzerrungen in unseren Beobachtungen entfernter Galaxien.",
+        plausibility: "Mittel"
+      },
+      black_hole_cosmology: {
+        description: "Unser Universum existiert innerhalb eines rotierenden Schwarzen Lochs, dessen Spin die Galaxien beeinflusst hat.",
+        plausibility: "Niedrig"
+      },
+      primordial_rotation: {
+        description: "Die anfänglichen Dichtefluktuationen im frühen Universum besaßen inhärente Rotation.",
+        plausibility: "Mittel"
+      },
+      simulation: {
+        description: "Die Rechtsdrehung ist ein Artefakt der Initialisierung oder des Algorithmus, falls unser Universum eine Simulation ist.",
+        plausibility: "Sehr niedrig"
+      },
+      exotic: {
+        description: "Unbekannte physikalische Prozesse oder Strukturen verursachen die gerichtete Rotation.",
+        plausibility: "Sehr niedrig"
+      }
+    };
+
+    // Szene, Kamera und Renderer initialisieren
+    let scene = new THREE.Scene();
+    let camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    let renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // OrbitControls hinzufügen
+    let controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+
+    // Raycaster für Tooltips
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let tooltip = document.getElementById('tooltip');
+    
+    // Initialize arrows array at the top of the script
+    const arrows = [];
+
+    // Sternenhintergrund (3000 Partikel)
+    const starGeometry = new THREE.BufferGeometry();
+    const starCount = 3000;
+    const positions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 2000; // x
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 2000; // y
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 2000; // z
+    }
+    starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 2 });
+    const stars = new THREE.Points(starGeometry, starMaterial);
+    scene.add(stars);
+
+    // Himmelskoordinaten-Gitter
+    const gridMaterial = new THREE.LineBasicMaterial({ color: 0x333333 });
+    const gridLines = new THREE.Group();
+    const radius = 500;
+    // RA-Linien (alle 30°)
+    for (let ra = 0; ra < 360; ra += 30) {
+      const points = [];
+      const raRad = ra * (Math.PI / 180);
+      for (let dec = -90; dec <= 90; dec += 5) {
+        const decRad = dec * (Math.PI / 180);
+        points.push(new THREE.Vector3(
+          radius * Math.cos(decRad) * Math.cos(raRad),
+          radius * Math.cos(decRad) * Math.sin(raRad),
+          radius * Math.sin(decRad)
+        ));
+      }
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const line = new THREE.Line(geometry, gridMaterial);
+      gridLines.add(line);
+    }
+    // DEC-Linien (alle 15°)
+    for (let dec = -90; dec <= 90; dec += 15) {
+      const points = [];
+      const decRad = dec * (Math.PI / 180);
+      for (let ra = 0; ra <= 360; ra += 5) {
+        const raRad = ra * (Math.PI / 180);
+        points.push(new THREE.Vector3(
+          radius * Math.cos(decRad) * Math.cos(raRad),
+          radius * Math.cos(decRad) * Math.sin(raRad),
+          radius * Math.sin(decRad)
+        ));
+      }
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const line = new THREE.Line(geometry, gridMaterial);
+      gridLines.add(line);
+    }
+    scene.add(gridLines);
+
+    // Ω-Zentrum 1 (pulsierender Punkt)
+    const originGeometry1 = new THREE.SphereGeometry(5, 32, 32);
+    const originMaterial1 = new THREE.MeshBasicMaterial({ color: 0x00ffcc });
+    const originPoint1 = new THREE.Mesh(originGeometry1, originMaterial1);
+    const raOrigin1 = 159.7 * (Math.PI / 180); // RA in Radiant
+    const decOrigin1 = 9.24 * (Math.PI / 180); // DEC in Radiant
+    originPoint1.position.set(
+      radius * Math.cos(decOrigin1) * Math.cos(raOrigin1),
+      radius * Math.cos(decOrigin1) * Math.sin(raOrigin1),
+      radius * Math.sin(decOrigin1)
+    );
+    originPoint1.userData = { name: "Ω-Zentrum 1" };
+    scene.add(originPoint1);
+
+    // Rotierender Puls (Ring um das Zentrum 1)
+    const ringGeometry1 = new THREE.RingGeometry(8, 10, 32);
+    const ringMaterial1 = new THREE.MeshBasicMaterial({ color: 0x00ffcc, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+    const ring1 = new THREE.Mesh(ringGeometry1, ringMaterial1);
+    ring1.position.copy(originPoint1.position);
+    ring1.rotation.x = Math.PI / 2;
+    scene.add(ring1);
+
+    // Radiale Strömungslinien vom Ω-Zentrum 1
+    const flowLines1 = new THREE.Group();
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * 2 * Math.PI;
+      const points = [];
+      for (let r = 10; r <= 200; r += 5) {
+        const x = r * Math.cos(angle);
+        const y = r * Math.sin(angle);
+        points.push(new THREE.Vector3(
+          originPoint1.position.x + x,
+          originPoint1.position.y + y,
+          originPoint1.position.z
+        ));
+      }
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const material = new THREE.LineBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.3 });
+      const line = new THREE.Line(geometry, material);
+      flowLines1.add(line);
+    }
+    scene.add(flowLines1);
+
+    // Ω-Zentrum 2 (Shamir-Mittelpunkt)
+    const originGeometry2 = new THREE.SphereGeometry(5, 32, 32);
+    const originMaterial2 = new THREE.MeshBasicMaterial({ color: 0xff00ff });
+    const originPoint2 = new THREE.Mesh(originGeometry2, originMaterial2);
+    const raOrigin2 = 30 * (Math.PI / 180); // RA in Radiant
+    const decOrigin2 = -15 * (Math.PI / 180); // DEC in Radiant
+    originPoint2.position.set(
+      radius * Math.cos(decOrigin2) * Math.cos(raOrigin2),
+      radius * Math.cos(decOrigin2) * Math.sin(raOrigin2),
+      radius * Math.sin(decOrigin2)
+    );
+    originPoint2.userData = { name: "Ω-Zentrum 2 (Shamir)" };
+    scene.add(originPoint2);
+
+    // Rotierender Puls (Ring um das Zentrum 2)
+    const ringGeometry2 = new THREE.RingGeometry(8, 10, 32);
+    const ringMaterial2 = new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+    const ring2 = new THREE.Mesh(ringGeometry2, ringMaterial2);
+    ring2.position.copy(originPoint2.position);
+    ring2.rotation.x = Math.PI / 2;
+    scene.add(ring2);
+
+    // Radiale Strömungslinien vom Ω-Zentrum 2
+    const flowLines2 = new THREE.Group();
+    for (let i = 0; i < 12; i++) {
+      const angle = (i / 12) * 2 * Math.PI;
+      const points = [];
+      for (let r = 10; r <= 200; r += 5) {
+        const x = r * Math.cos(angle);
+        const y = r * Math.sin(angle);
+        points.push(new THREE.Vector3(
+          originPoint2.position.x + x,
+          originPoint2.position.y + y,
+          originPoint2.position.z
+        ));
+      }
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const material = new THREE.LineBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.3 });
+      const line = new THREE.Line(geometry, material);
+      flowLines2.add(line);
+    }
+    scene.add(flowLines2);
+
+    // Deep-Sky-Objekte hinzufügen (für Ω-Zentrum 1)
+    const deepSkyObjects = [
+      { name: "M65", ra: 169.733, dec: 13.092, color: 0xffff00 },
+      { name: "M66", ra: 170.0625, dec: 12.9917, color: 0xffff00 },
+      { name: "M95", ra: 160.9904, dec: 11.7039, color: 0xffff00 },
+      { name: "M96", ra: 161.6904, dec: 11.8200, color: 0xffff00 },
+      { name: "M105", ra: 161.9567, dec: 12.5817, color: 0xffff00 }
+    ];
+    let deepSkyMeshes = [];
+    deepSkyObjects.forEach(obj => {
+      const geometry = new THREE.SphereGeometry(3, 16, 16);
+      const material = new THREE.MeshBasicMaterial({ color: obj.color });
+      const mesh = new THREE.Mesh(geometry, material);
+      const raRad = obj.ra * (Math.PI / 180);
+      const decRad = obj.dec * (Math.PI / 180);
+      mesh.position.set(
+        radius * Math.cos(decRad) * Math.cos(raRad),
+        radius * Math.cos(decRad) * Math.sin(raRad),
+        radius * Math.sin(decRad)
+      );
+      mesh.userData = { name: obj.name };
+      scene.add(mesh);
+      deepSkyMeshes.push(mesh);
+
+      // Label hinzufügen
+      const labelDiv = document.createElement('div');
+      labelDiv.className = 'label';
+      labelDiv.textContent = obj.name;
+      document.body.appendChild(labelDiv);
+      mesh.userData.label = labelDiv;
+    });
+
+    // Galaxien aus shamir_galaxies_final.json (Real Data)
+    const realGalaxies = [
+      {"id": "SHAMIR001", "ra": 3.1279542, "dec": -27.7715134, "spin": "clockwise"},
+      {"id": "SHAMIR002", "ra": 53.0193353, "dec": -27.8602004, "spin": "clockwise"},
+      {"id": "SHAMIR003", "ra": 53.0248564, "dec": -27.8832216, "spin": "clockwise"},
+      {"id": "SHAMIR004", "ra": 53.0281374, "dec": -27.867526, "spin": "clockwise"},
+      {"id": "SHAMIR005", "ra": 53.0286673, "dec": -27.8737467, "spin": "clockwise"},
+      {"id": "SHAMIR006", "ra": 53.0287575, "dec": -27.8703469, "spin": "counterclockwise"},
+      {"id": "SHAMIR007", "ra": 53.0289134, "dec": -27.8803077, "spin": "clockwise"},
+      {"id": "SHAMIR008", "ra": 53.030573, "dec": -27.8557305, "spin": "counterclockwise"},
+      {"id": "SHAMIR009", "ra": 53.0307616, "dec": -27.8706095, "spin": "clockwise"},
+      {"id": "SHAMIR010", "ra": 53.0315505, "dec": -27.8515717, "spin": "clockwise"},
+      {"id": "SHAMIR011", "ra": 53.0331686, "dec": -27.8480343, "spin": "clockwise"},
+      {"id": "SHAMIR012", "ra": 53.0346279, "dec": -27.8713092, "spin": "counterclockwise"},
+      {"id": "SHAMIR013", "ra": 53.035738, "dec": -27.871681, "spin": "clockwise"},
+      {"id": "SHAMIR014", "ra": 53.0367451, "dec": -27.8875751, "spin": "counterclockwise"},
+      {"id": "SHAMIR015", "ra": 53.0368943, "dec": -27.8572009, "spin": "clockwise"},
+      {"id": "SHAMIR016", "ra": 53.0373338, "dec": -27.8703302, "spin": "counterclockwise"},
+      {"id": "SHAMIR017", "ra": 53.0373588, "dec": -27.8758075, "spin": "clockwise"},
+      {"id": "SHAMIR018", "ra": 53.0384867, "dec": -27.8622052, "spin": "counterclockwise"},
+      {"id": "SHAMIR019", "ra": 53.0408007, "dec": -27.8817782, "spin": "clockwise"},
+      {"id": "SHAMIR020", "ra": 53.0425003, "dec": -27.8821344, "spin": "counterclockwise"},
+      {"id": "SHAMIR021", "ra": 53.0442441, "dec": -27.8953532, "spin": "counterclockwise"},
+      {"id": "SHAMIR022", "ra": 53.0446664, "dec": -27.8936859, "spin": "clockwise"},
+      {"id": "SHAMIR023", "ra": 53.045045, "dec": -27.8818705, "spin": "clockwise"},
+      {"id": "SHAMIR024", "ra": 53.0460538, "dec": -27.8289356, "spin": "counterclockwise"},
+      {"id": "SHAMIR025", "ra": 53.0465296, "dec": -27.8821387, "spin": "clockwise"},
+      {"id": "SHAMIR026", "ra": 53.0467626, "dec": -27.8520855, "spin": "counterclockwise"},
+      {"id": "SHAMIR027", "ra": 53.0477066, "dec": -27.8353006, "spin": "clockwise"},
+      {"id": "SHAMIR028", "ra": 53.0492605, "dec": -27.8700264, "spin": "clockwise"},
+      {"id": "SHAMIR029", "ra": 53.0495568, "dec": -27.8992607, "spin": "counterclockwise"},
+      {"id": "SHAMIR030", "ra": 53.0499228, "dec": -27.8428186, "spin": "clockwise"},
+      {"id": "SHAMIR031", "ra": 53.0502416, "dec": -27.8402054, "spin": "counterclockwise"},
+      {"id": "SHAMIR032", "ra": 53.0508248, "dec": -27.8919429, "spin": "counterclockwise"},
+      {"id": "SHAMIR033", "ra": 53.0514024, "dec": -27.8701501, "spin": "counterclockwise"},
+      {"id": "SHAMIR034", "ra": 53.0521408, "dec": -27.8920364, "spin": "clockwise"},
+      {"id": "SHAMIR035", "ra": 53.0533498, "dec": -27.8897312, "spin": "clockwise"},
+      {"id": "SHAMIR036", "ra": 53.0552493, "dec": -27.8233445, "spin": "clockwise"},
+      {"id": "SHAMIR037", "ra": 53.0552519, "dec": -27.8856482, "spin": "counterclockwise"},
+      {"id": "SHAMIR038", "ra": 53.0558147, "dec": -27.8300434, "spin": "counterclockwise"},
+      {"id": "SHAMIR039", "ra": 53.0561208, "dec": -27.8427935, "spin": "clockwise"},
+      {"id": "SHAMIR040", "ra": 53.0567343, "dec": -27.8796932, "spin": "counterclockwise"},
+      {"id": "SHAMIR041", "ra": 53.0569792, "dec": -27.8262655, "spin": "clockwise"},
+      {"id": "SHAMIR042", "ra": 53.0571043, "dec": -27.8209306, "spin": "counterclockwise"},
+      {"id": "SHAMIR043", "ra": 53.0573808, "dec": -27.8919577, "spin": "clockwise"},
+      {"id": "SHAMIR044", "ra": 53.0578412, "dec": -27.8307351, "spin": "counterclockwise"},
+      {"id": "SHAMIR045", "ra": 53.0585653, "dec": -27.8568762, "spin": "counterclockwise"},
+      {"id": "SHAMIR046", "ra": 53.0595572, "dec": -27.8224721, "spin": "clockwise"},
+      {"id": "SHAMIR047", "ra": 53.0604167, "dec": -27.8924328, "spin": "clockwise"},
+      {"id": "SHAMIR048", "ra": 53.0605633, "dec": -27.8512857, "spin": "counterclockwise"},
+      {"id": "SHAMIR049", "ra": 53.060609, "dec": -27.8310224, "spin": "counterclockwise"},
+      {"id": "SHAMIR050", "ra": 53.0608612, "dec": -27.8204453, "spin": "clockwise"},
+      {"id": "SHAMIR051", "ra": 53.060891, "dec": -27.82218, "spin": "counterclockwise"},
+      {"id": "SHAMIR052", "ra": 53.0620101, "dec": -27.876839, "spin": "clockwise"},
+      {"id": "SHAMIR053", "ra": 53.06216, "dec": -27.829851, "spin": "counterclockwise"},
+      {"id": "SHAMIR054", "ra": 53.0625037, "dec": -27.8349052, "spin": "counterclockwise"},
+      {"id": "SHAMIR055", "ra": 53.062789, "dec": -27.8489887, "spin": "clockwise"},
+      {"id": "SHAMIR056", "ra": 53.0629972, "dec": -27.8310975, "spin": "counterclockwise"},
+      {"id": "SHAMIR057", "ra": 53.0638817, "dec": -27.8243501, "spin": "clockwise"},
+      {"id": "SHAMIR058", "ra": 53.0639208, "dec": -27.8243688, "spin": "clockwise"},
+      {"id": "SHAMIR059", "ra": 53.0642316, "dec": -27.8572046, "spin": "clockwise"},
+      {"id": "SHAMIR060", "ra": 53.0650035, "dec": -27.8981819, "spin": "clockwise"},
+      {"id": "SHAMIR061", "ra": 53.066017, "dec": -27.826839, "spin": "counterclockwise"},
+      {"id": "SHAMIR062", "ra": 53.0673265, "dec": -27.8282897, "spin": "clockwise"},
+      {"id": "SHAMIR063", "ra": 53.0678622, "dec": -27.8592175, "spin": "clockwise"},
+      {"id": "SHAMIR064", "ra": 53.0689231, "dec": -27.8796888, "spin": "counterclockwise"},
+      {"id": "SHAMIR065", "ra": 53.0689281, "dec": -27.8263187, "spin": "clockwise"},
+      {"id": "SHAMIR066", "ra": 53.068947, "dec": -27.849377, "spin": "clockwise"},
+      {"id": "SHAMIR067", "ra": 53.0693205, "dec": -27.8788218, "spin": "clockwise"},
+      {"id": "SHAMIR068", "ra": 53.0697243, "dec": -27.875842, "spin": "clockwise"},
+      {"id": "SHAMIR069", "ra": 53.0697976, "dec": -27.8391838, "spin": "clockwise"},
+      {"id": "SHAMIR070", "ra": 53.0704161, "dec": -27.9052013, "spin": "counterclockwise"},
+      {"id": "SHAMIR071", "ra": 53.070908, "dec": -27.844885, "spin": "clockwise"},
+      {"id": "SHAMIR072", "ra": 53.0710796, "dec": -27.8537283, "spin": "clockwise"},
+      {"id": "SHAMIR073", "ra": 53.0711214, "dec": -27.8227704, "spin": "clockwise"},
+      {"id": "SHAMIR074", "ra": 53.071776, "dec": -27.8437142, "spin": "counterclockwise"},
+      {"id": "SHAMIR075", "ra": 53.0717995, "dec": -27.9025473, "spin": "clockwise"},
+      {"id": "SHAMIR076", "ra": 53.0720162, "dec": -27.8537413, "spin": "counterclockwise"},
+      {"id": "SHAMIR077", "ra": 53.0722817, "dec": -27.8443486, "spin": "clockwise"},
+      {"id": "SHAMIR078", "ra": 53.0727344, "dec": -27.8343114, "spin": "counterclockwise"},
+      {"id": "SHAMIR079", "ra": 53.072742, "dec": -27.8012799, "spin": "clockwise"},
+      {"id": "SHAMIR080", "ra": 53.0731238, "dec": -27.9018674, "spin": "clockwise"},
+      {"id": "SHAMIR081", "ra": 53.073440, "dec": -27.8408036, "spin": "counterclockwise"},
+      {"id": "SHAMIR082", "ra": 53.073471, "dec": -27.8746265, "spin": "clockwise"},
+      {"id": "SHAMIR083", "ra": 53.074158, "dec": -27.820084, "spin": "clockwise"},
+      {"id": "SHAMIR084", "ra": 53.074195, "dec": -27.8239991, "spin": "clockwise"},
+      {"id": "SHAMIR085", "ra": 53.0745397, "dec": -27.7985159, "spin": "clockwise"},
+      {"id": "SHAMIR086", "ra": 53.0752012, "dec": -27.8314599, "spin": "counterclockwise"},
+      {"id": "SHAMIR087", "ra": 53.0753324, "dec": -27.900202, "spin": "clockwise"},
+      {"id": "SHAMIR088", "ra": 53.0772016, "dec": -27.8205387, "spin": "counterclockwise"},
+      {"id": "SHAMIR089", "ra": 53.0772981, "dec": -27.8095869, "spin": "clockwise"},
+      {"id": "SHAMIR090", "ra": 53.0778957, "dec": -27.8932042, "spin": "counterclockwise"},
+      {"id": "SHAMIR091", "ra": 53.0779581, "dec": -27.8582796, "spin": "clockwise"},
+      {"id": "SHAMIR092", "ra": 53.0780646, "dec": -27.7948371, "spin": "clockwise"},
+      {"id": "SHAMIR093", "ra": 53.0781977, "dec": -27.8701926, "spin": "counterclockwise"},
+      {"id": "SHAMIR094", "ra": 53.078201, "dec": -27.8081526, "spin": "clockwise"},
+      {"id": "SHAMIR095", "ra": 53.0782543, "dec": -27.8569828, "spin": "counterclockwise"},
+      {"id": "SHAMIR096", "ra": 53.0784400, "dec": -27.8194916, "spin": "counterclockwise"},
+      {"id": "SHAMIR097", "ra": 53.0794105, "dec": -27.862338, "spin": "counterclockwise"},
+      {"id": "SHAMIR098", "ra": 53.0796836, "dec": -27.8424121, "spin": "counterclockwise"},
+      {"id": "SHAMIR099", "ra": 53.0803383, "dec": -27.9005456, "spin": "counterclockwise"},
+      {"id": "SHAMIR100", "ra": 53.0803688, "dec": -27.8083994, "spin": "counterclockwise"},
+      {"id": "SHAMIR101", "ra": 53.0810023, "dec": -27.8238445, "spin": "counterclockwise"},
+      {"id": "SHAMIR102", "ra": 53.0819773, "dec": -27.8399439, "spin": "counterclockwise"},
+      {"id": "SHAMIR103", "ra": 53.0832777, "dec": -27.8480718, "spin": "clockwise"},
+      {"id": "SHAMIR104", "ra": 53.084441, "dec": -27.8728831, "spin": "counterclockwise"},
+      {"id": "SHAMIR105", "ra": 53.0862719, "dec": -27.8617956, "spin": "clockwise"},
+      {"id": "SHAMIR106", "ra": 53.0864800, "dec": -27.869843, "spin": "clockwise"},
+      {"id": "SHAMIR107", "ra": 53.0878515, "dec": -27.8308227, "spin": "clockwise"},
+      {"id": "SHAMIR108", "ra": 53.088227, "dec": -27.8506168, "spin": "clockwise"},
+      {"id": "SHAMIR109", "ra": 53.088887, "dec": -27.8681537, "spin": "clockwise"},
+      {"id": "SHAMIR110", "ra": 53.0893112, "dec": -27.8172391, "spin": "clockwise"},
+      {"id": "SHAMIR111", "ra": 53.0893392, "dec": -27.8302602, "spin": "clockwise"},
+      {"id": "SHAMIR112", "ra": 53.0897244, "dec": -27.8446916, "spin": "clockwise"},
+      {"id": "SHAMIR113", "ra": 53.0902375, "dec": -27.8479062, "spin": "clockwise"},
+      {"id": "SHAMIR114", "ra": 53.0917752, "dec": -27.8850705, "spin": "clockwise"},
+      {"id": "SHAMIR115", "ra": 53.0917947, "dec": -27.9079949, "spin": "clockwise"},
+      {"id": "SHAMIR116", "ra": 53.0921738, "dec": -27.8791953, "spin": "clockwise"},
+      {"id": "SHAMIR117", "ra": 53.0923399, "dec": -27.8479983, "spin": "clockwise"},
+      {"id": "SHAMIR118", "ra": 53.0937000, "dec": -27.8554013, "spin": "clockwise"},
+      {"id": "SHAMIR119", "ra": 53.0938238, "dec": -27.8941047, "spin": "clockwise"},
+      {"id": "SHAMIR120", "ra": 53.0942337, "dec": -27.8755992, "spin": "clockwise"},
+      {"id": "SHAMIR121", "ra": 53.0951142, "dec": -27.8262703, "spin": "clockwise"},
+      {"id": "SHAMIR122", "ra": 53.0951248, "dec": -27.8313279, "spin": "clockwise"},
+      {"id": "SHAMIR123", "ra": 53.0951927, "dec": -27.8568509, "spin": "clockwise"},
+      {"id": "SHAMIR124", "ra": 53.0956144, "dec": -27.8159647, "spin": "clockwise"},
+      {"id": "SHAMIR125", "ra": 53.0960714, "dec": -27.828683, "spin": "clockwise"},
+      {"id": "SHAMIR126", "ra": 53.0965038, "dec": -27.9073124, "spin": "clockwise"},
+      {"id": "SHAMIR127", "ra": 53.0966713, "dec": -27.879375, "spin": "clockwise"},
+      {"id": "SHAMIR128", "ra": 53.0968709, "dec": -27.8855638, "spin": "clockwise"},
+      {"id": "SHAMIR129", "ra": 53.0970239, "dec": -27.881629, "spin": "clockwise"},
+      {"id": "SHAMIR130", "ra": 53.0971496, "dec": -27.8146692, "spin": "clockwise"},
+      {"id": "SHAMIR131", "ra": 53.0973401, "dec": -27.9013593, "spin": "clockwise"},
+      {"id": "SHAMIR132", "ra": 53.0979105, "dec": -27.9080514, "spin": "clockwise"},
+      {"id": "SHAMIR133", "ra": 53.0985649, "dec": -27.8976944, "spin": "clockwise"},
+      {"id": "SHAMIR134", "ra": 53.0998786, "dec": -27.8798943, "spin": "clockwise"},
+      {"id": "SHAMIR135", "ra": 53.1007743, "dec": -27.8312572, "spin": "clockwise"},
+      {"id": "SHAMIR136", "ra": 53.1018111, "dec": -27.86505, "spin": "clockwise"},
+      {"id": "SHAMIR137", "ra": 53.1025891, "dec": -27.8815702, "spin": "clockwise"},
+      {"id": "SHAMIR138", "ra": 53.1027136, "dec": -27.8357093, "spin": "clockwise"},
+      {"id": "SHAMIR139", "ra": 53.1031616, "dec": -27.8652455, "spin": "clockwise"},
+      {"id": "SHAMIR140", "ra": 53.1039113, "dec": -27.8390226, "spin": "clockwise"},
+      {"id": "SHAMIR141", "ra": 53.1058087, "dec": -27.8334029, "spin": "clockwise"},
+      {"id": "SHAMIR142", "ra": 53.1058206, "dec": -27.8334083, "spin": "clockwise"},
+      {"id": "SHAMIR143", "ra": 53.1058432, "dec": -27.8984435, "spin": "clockwise"},
+      {"id": "SHAMIR144", "ra": 53.106074, "dec": -27.8652313, "spin": "clockwise"},
+      {"id": "SHAMIR145", "ra": 53.1072662, "dec": -27.8058498, "spin": "clockwise"},
+      {"id": "SHAMIR146", "ra": 53.1073507, "dec": -27.8267313, "spin": "clockwise"},
+      {"id": "SHAMIR147", "ra": 53.1074781, "dec": -27.8041212, "spin": "clockwise"},
+      {"id": "SHAMIR148", "ra": 53.1074863, "dec": -27.8623169, "spin": "clockwise"},
+      {"id": "SHAMIR149", "ra": 53.1077205, "dec": -27.8388817, "spin": "clockwise"},
+      {"id": "SHAMIR150", "ra": 53.1081399, "dec": -27.8877607, "spin": "clockwise"},
+      {"id": "SHAMIR151", "ra": 53.1082963, "dec": -27.8930911, "spin": "clockwise"},
+      {"id": "SHAMIR152", "ra": 53.1083292, "dec": -27.8795013, "spin": "clockwise"},
+      {"id": "SHAMIR153", "ra": 53.1085802, "dec": -27.8633293, "spin": "clockwise"},
+      {"id": "SHAMIR154", "ra": 53.1091200, "dec": -27.8530365, "spin": "clockwise"},
+      {"id": "SHAMIR155", "ra": 53.1103699, "dec": -27.8883061, "spin": "clockwise"},
+      {"id": "SHAMIR156", "ra": 53.1107677, "dec": -27.8339117, "spin": "clockwise"},
+      {"id": "SHAMIR157", "ra": 53.110822, "dec": -27.8006488, "spin": "clockwise"},
+      {"id": "SHAMIR158", "ra": 53.110991, "dec": -27.9067594, "spin": "clockwise"},
+      {"id": "SHAMIR159", "ra": 53.1119073, "dec": -27.8053042, "spin": "clockwise"},
+      {"id": "SHAMIR160", "ra": 53.1125336, "dec": -27.8080579, "spin": "clockwise"},
+      {"id": "SHAMIR161", "ra": 53.1131144, "dec": -27.8866044, "spin": "clockwise"},
+      {"id": "SHAMIR162", "ra": 53.113772, "dec": -27.8435787, "spin": "clockwise"},
+      {"id": "SHAMIR163", "ra": 53.1152094, "dec": -27.8325756, "spin": "clockwise"},
+      {"id": "SHAMIR164", "ra": 53.1155528, "dec": -27.9144036, "spin": "clockwise"},
+      {"id": "SHAMIR165", "ra": 53.1155789, "dec": -27.8447307, "spin": "clockwise"},
+      {"id": "SHAMIR166", "ra": 53.1160406, "dec": -27.9121885, "spin": "clockwise"},
+      {"id": "SHAMIR167", "ra": 53.1184803, "dec": -27.8053588, "spin": "clockwise"},
+      {"id": "SHAMIR168", "ra": 53.1187014, "dec": -27.8057706, "spin": "clockwise"},
+      {"id": "SHAMIR169", "ra": 53.1198685, "dec": -27.7987721, "spin": "clockwise"},
+      {"id": "SHAMIR170", "ra": 53.1205041, "dec": -27.8517213, "spin": "clockwise"},
+      {"id": "SHAMIR171", "ra": 53.1207774, "dec": -27.8189708, "spin": "clockwise"},
+      {"id": "SHAMIR172", "ra": 53.1221556, "dec": -27.8654683, "spin": "clockwise"},
+      {"id": "SHAMIR173", "ra": 53.1228467, "dec": -27.8483623, "spin": "clockwise"},
+      {"id": "SHAMIR174", "ra": 53.1237878, "dec": -27.832641, "spin": "clockwise"},
+      {"id": "SHAMIR175", "ra": 53.1239903, "dec": -27.8631171, "spin": "clockwise"},
+      {"id": "SHAMIR176", "ra": 53.1242332, "dec": -27.889704, "spin": "clockwise"},
+      {"id": "SHAMIR177", "ra": 53.124591, "dec": -27.8932989, "spin": "clockwise"},
+      {"id": "SHAMIR178", "ra": 53.126241, "dec": -27.8292075, "spin": "clockwise"},
+      {"id": "SHAMIR179", "ra": 53.1272777, "dec": -27.8386627, "spin": "clockwise"},
+      {"id": "SHAMIR180", "ra": 53.1284391, "dec": -27.8504606, "spin": "clockwise"},
+      {"id": "SHAMIR181", "ra": 53.1293315, "dec": -27.7709544, "spin": "clockwise"},
+      {"id": "SHAMIR182", "ra": 53.1301701, "dec": -27.7809458, "spin": "clockwise"},
+      {"id": "SHAMIR183", "ra": 53.1308698, "dec": -27.8299421, "spin": "clockwise"},
+      {"id": "SHAMIR184", "ra": 53.131012, "dec": -27.8236125, "spin": "clockwise"},
+      {"id": "SHAMIR185", "ra": 53.1315421, "dec": -27.7864976, "spin": "clockwise"},
+      {"id": "SHAMIR186", "ra": 53.1315577, "dec": -27.8963155, "spin": "clockwise"},
+      {"id": "SHAMIR187", "ra": 53.1316813, "dec": -27.8345866, "spin": "clockwise"},
+      {"id": "SHAMIR188", "ra": 53.1326939, "dec": -27.8329912, "spin": "clockwise"},
+      {"id": "SHAMIR189", "ra": 53.1329688, "dec": -27.8984036, "spin": "clockwise"},
+      {"id": "SHAMIR190", "ra": 53.1338997, "dec": -27.8516127, "spin": "clockwise"},
+      {"id": "SHAMIR191", "ra": 53.1352184, "dec": -27.875069, "spin": "clockwise"},
+      {"id": "SHAMIR192", "ra": 53.1356372, "dec": -27.7666907, "spin": "clockwise"},
+      {"id": "SHAMIR193", "ra": 53.1357641, "dec": -27.8484238, "spin": "clockwise"},
+      {"id": "SHAMIR194", "ra": 53.1360779, "dec": -27.8292005, "spin": "clockwise"},
+      {"id": "SHAMIR195", "ra": 53.1362945, "dec": -27.7632657, "spin": "clockwise"},
+      {"id": "SHAMIR196", "ra": 53.1369272, "dec": -27.7907591, "spin": "clockwise"},
+      {"id": "SHAMIR197", "ra": 53.1370804, "dec": -27.8501197, "spin": "clockwise"},
+      {"id": "SHAMIR198", "ra": 53.1373614, "dec": -27.7622325, "spin": "clockwise"},
+      {"id": "SHAMIR199", "ra": 53.1374871, "dec": -27.8418249, "spin": "clockwise"},
+      {"id": "SHAMIR200", "ra": 53.1376604, "dec": -27.7632512, "spin": "clockwise"},
+      {"id": "SHAMIR201", "ra": 53.1378387, "dec": -27.8566923, "spin": "clockwise"},
+      {"id": "SHAMIR202", "ra": 53.1392775, "dec": -27.7807792, "spin": "clockwise"},
+      {"id": "SHAMIR203", "ra": 53.1393988, "dec": -27.7674556, "spin": "clockwise"},
+      {"id": "SHAMIR204", "ra": 53.1403351, "dec": -27.8635211, "spin": "clockwise"},
+      {"id": "SHAMIR205", "ra": 53.1411431, "dec": -27.7618807, "spin": "clockwise"},
+      {"id": "SHAMIR206", "ra": 53.1413527, "dec": -27.825755, "spin": "clockwise"},
+      {"id": "SHAMIR207", "ra": 53.1413943, "dec": -27.8257229, "spin": "clockwise"},
+      {"id": "SHAMIR208", "ra": 53.1418679, "dec": -27.8253231, "spin": "clockwise"},
+      {"id": "SHAMIR209", "ra": 53.1419006, "dec": -27.8253096, "spin": "clockwise"},
+      {"id": "SHAMIR210", "ra": 53.1435404, "dec": -27.7557315, "spin": "clockwise"},
+      {"id": "SHAMIR211", "ra": 53.1436493, "dec": -27.7582272, "spin": "clockwise"},
+      {"id": "SHAMIR212", "ra": 53.1437771, "dec": -27.8134799, "spin": "clockwise"},
+      {"id": "SHAMIR213", "ra": 53.1452409, "dec": -27.7511319, "spin": "clockwise"},
+      {"id": "SHAMIR214", "ra": 53.1454738, "dec": -27.7506179, "spin": "clockwise"},
+      {"id": "SHAMIR215", "ra": 53.145475, "dec": -27.8336683, "spin": "clockwise"},
+      {"id": "SHAMIR216", "ra": 53.1462674, "dec": -27.8314869, "spin": "clockwise"},
+      {"id": "SHAMIR217", "ra": 53.1470842, "dec": -27.7785246, "spin": "clockwise"},
+      {"id": "SHAMIR218", "ra": 53.1479323, "dec": -27.774095, "spin": "clockwise"},
+      {"id": "SHAMIR219", "ra": 53.1481753, "dec": -27.7738463, "spin": "clockwise"},
+      {"id": "SHAMIR220", "ra": 53.149258, "dec": -27.7636845, "spin": "clockwise"},
+      {"id": "SHAMIR221", "ra": 53.1499215, "dec": -27.8140455, "spin": "clockwise"},
+      {"id": "SHAMIR222", "ra": 53.1499913, "dec": -27.7399957, "spin": "clockwise"},
+      {"id": "SHAMIR223", "ra": 53.1500039, "dec": -27.7577261, "spin": "clockwise"},
+      {"id": "SHAMIR224", "ra": 53.150751, "dec": -27.85742, "spin": "clockwise"},
+      {"id": "SHAMIR225", "ra": 53.1508174, "dec": -27.760124, "spin": "clockwise"},
+      {"id": "SHAMIR226", "ra": 53.1508706, "dec": -27.8612319, "spin": "clockwise"},
+      {"id": "SHAMIR227", "ra": 53.1508711, "dec": -27.7419219, "spin": "clockwise"},
+      {"id": "SHAMIR228", "ra": 53.1508807, "dec": -27.8611853, "spin": "clockwise"},
+      {"id": "SHAMIR229", "ra": 53.151547, "dec": -27.8549017, "spin": "clockwise"},
+      {"id": "SHAMIR230", "ra": 53.151992, "dec": -27.7747388, "spin": "clockwise"},
+      {"id": "SHAMIR231", "ra": 53.1520962, "dec": -27.8351648, "spin": "clockwise"},
+      {"id": "SHAMIR232", "ra": 53.1523614, "dec": -27.7780246, "spin": "clockwise"},
+      {"id": "SHAMIR233", "ra": 53.1523853, "dec": -27.8343908, "spin": "clockwise"},
+      {"id": "SHAMIR234", "ra": 53.1531176, "dec": -27.8686182, "spin": "clockwise"},
+      {"id": "SHAMIR235", "ra": 53.1547878, "dec": -27.7739138, "spin": "clockwise"},
+      {"id": "SHAMIR236", "ra": 53.1548761, "dec": -27.8578577, "spin": "clockwise"},
+      {"id": "SHAMIR237", "ra": 53.1554066, "dec": -27.7382866, "spin": "clockwise"},
+      {"id": "SHAMIR238", "ra": 53.1554348, "dec": -27.7661381, "spin": "clockwise"},
+      {"id": "SHAMIR239", "ra": 53.155462, "dec": -27.8386084, "spin": "clockwise"},
+      {"id": "SHAMIR240", "ra": 53.1557427, "dec": -27.7794153, "spin": "clockwise"},
+      {"id": "SHAMIR241", "ra": 53.1564312, "dec": -27.8108991, "spin": "clockwise"},
+      {"id": "SHAMIR242", "ra": 53.1564439, "dec": -27.8710278, "spin": "clockwise"},
+      {"id": "SHAMIR243", "ra": 53.157234, "dec": -27.7379451, "spin": "clockwise"},
+      {"id": "SHAMIR244", "ra": 53.1578600, "dec": -27.7975775, "spin": "clockwise"},
+      {"id": "SHAMIR245", "ra": 53.1580437, "dec": -27.838465, "spin": "clockwise"},
+      {"id": "SHAMIR246", "ra": 53.1581806, "dec": -27.7811417, "spin": "clockwise"},
+      {"id": "SHAMIR247", "ra": 53.1588282, "dec": -27.7705852, "spin": "clockwise"},
+      {"id": "SHAMIR248", "ra": 53.1588635, "dec": -27.7574229, "spin": "clockwise"},
+      {"id": "SHAMIR249", "ra": 53.1589977, "dec": -27.8326493, "spin": "clockwise"},
+      {"id": "SHAMIR250", "ra": 53.1595345, "dec": -27.8392275, "spin": "clockwise"},
+      {"id": "SHAMIR251", "ra": 53.1598219, "dec": -27.7623367, "spin": "clockwise"},
+      {"id": "SHAMIR252", "ra": 53.1600056, "dec": -27.7669025, "spin": "clockwise"},
+      {"id": "SHAMIR253", "ra": 53.1600134, "dec": -27.8637361, "spin": "clockwise"},
+      {"id": "SHAMIR254", "ra": 53.1602537, "dec": -27.7693798, "spin": "clockwise"},
+      {"id": "SHAMIR255", "ra": 53.1602644, "dec": -27.8255784, "spin": "clockwise"},
+      {"id": "SHAMIR256", "ra": 53.1603471, "dec": -27.8406146, "spin": "clockwise"},
+      {"id": "SHAMIR257", "ra": 53.1607121, "dec": -27.7753929, "spin": "clockwise"},
+      {"id": "SHAMIR258", "ra": 53.160738, "dec": -27.8358968, "spin": "clockwise"},
+      {"id": "SHAMIR259", "ra": 53.1608299, "dec": -27.7500577, "spin": "clockwise"},
+      {"id": "SHAMIR260", "ra": 53.1608377, "dec": -27.8653308, "spin": "clockwise"},
+      {"id": "SHAMIR261", "ra": 53.1608511, "dec": -27.7428529, "spin": "clockwise"},
+      {"id": "SHAMIR262", "ra": 53.1618000, "dec": -27.7292176, "spin": "clockwise"},
+      {"id": "SHAMIR263", "ra": 53.1624406, "dec": -27.775118, "spin": "clockwise"}
+    ];
+
+    // Simulierte Galaxien (für Simulation-Modus)
+    const simulatedGalaxies = [];
+    for (let i = 0; i < 500; i++) {
+      const ra = Math.random() * 360;
+      const dec = Math.random() * 180 - 90;
+      const dist1 = Math.sqrt(Math.pow(ra - 159.7, 2) + Math.pow(dec - 9.24, 2));
+      const dist2 = Math.sqrt(Math.pow(ra - 30, 2) + Math.pow(dec - (-15), 2));
+      const influence1 = 1 / (dist1 + 1); // Einfluss von Ω-Zentrum 1
+      const influence2 = 1 / (dist2 + 1); // Einfluss von Ω-Zentrum 2
+      const totalInfluence = influence1 + influence2;
+      const probCW = (influence1 * 0.8 + influence2 * 0.6) / totalInfluence; // Ω-Zentrum 1: stark CW, Ω-Zentrum 2: leicht CW
+      const spin = Math.random() < probCW ? "clockwise" : "counterclockwise";
+      simulatedGalaxies.push({
+        id: `SIM${i.toString().padStart(3, '0')}`,
+        ra: ra,
+        dec: dec,
+        spin: spin
+      });
+    }
+
+    let currentGalaxies = realGalaxies;
+    let galaxyMeshes = [];
+    let isSimulationMode = false;
+
+    function loadGalaxies(galaxies) {
+      // Alte Galaxien entfernen
+      galaxyMeshes.forEach(mesh => scene.remove(mesh));
+      galaxyMeshes = [];
+
+      // Neue Galaxien hinzufügen
+      galaxies.forEach(galaxy => {
+        const geometry = new THREE.SphereGeometry(2, 8, 8);
+        const color = galaxy.spin === "clockwise" ? 0x0000ff : 0xff0000;
+        const material = new THREE.MeshBasicMaterial({ color: color });
+        const mesh = new THREE.Mesh(geometry, material);
+        const raRad = galaxy.ra * (Math.PI / 180);
+        const decRad = galaxy.dec * (Math.PI / 180);
+        mesh.position.set(
+          radius * Math.cos(decRad) * Math.cos(raRad),
+          radius * Math.cos(decRad) * Math.sin(raRad),
+          radius * Math.sin(decRad)
+        );
+        mesh.userData = { id: galaxy.id, spin: galaxy.spin, baseColor: color };
+        scene.add(mesh);
+        galaxyMeshes.push(mesh);
+      });
+
+      // Statistik aktualisieren
+      const cwCount = galaxies.filter(g => g.spin === "clockwise").length;
+      const ccwCount = galaxies.filter(g => g.spin === "counterclockwise").length;
+      const asymmetry = ((cwCount - ccwCount) / (cwCount + ccwCount)).toFixed(3);
+      document.getElementById('cw-count').textContent = cwCount;
+      document.getElementById('ccw-count').textContent = ccwCount;
+      document.getElementById('asymmetry').textContent = asymmetry;
+
+      // Strömungspfeile aktualisieren
+      updateFlowArrows();
+    }
+
+    // Initiale Galaxien laden
+    loadGalaxies(currentGalaxies);
+
+    // Spin-Strömungspfeile (animiert)
+    function updateFlowArrows() {
+      // Alte Pfeile entfernen
+      arrows.forEach(arrow => scene.remove(arrow));
+      arrows.length = 0;
+
+      const bins = 6;
+      const raRange = 360 / bins;
+      const decRange = 180 / bins;
+      for (let i = 0; i < bins; i++) {
+        for (let j = 0; j < bins; j++) {
+          const raMin = i * raRange;
+          const raMax = (i + 1) * raRange;
+          const decMin = -90 + j * decRange;
+          const decMax = -90 + (j + 1) * decRange;
+          const binGalaxies = currentGalaxies.filter(g => g.ra >= raMin && g.ra < raMax && g.dec >= decMin && g.dec < decMax);
+          if (binGalaxies.length > 0) {
+            const cwCount = binGalaxies.filter(g => g.spin === "clockwise").length;
+            const ccwCount = binGalaxies.filter(g => g.spin === "counterclockwise").length;
+            const asymmetry = (cwCount - ccwCount) / (cwCount + ccwCount);
+            if (Math.abs(asymmetry) > 0.5) {
+              const raCenter = (raMin + raMax) / 2 * (Math.PI / 180);
+              const decCenter = (decMin + decMax) / 2 * (Math.PI / 180);
+              const arrowOrigin = new THREE.Vector3(
+                radius * Math.cos(decCenter) * Math.cos(raCenter),
+                radius * Math.cos(decCenter) * Math.sin(raCenter),
+                radius * Math.sin(decCenter)
+              );
+              const arrowHelper = new THREE.ArrowHelper(
+                new THREE.Vector3(1, 0, 0), // Wird in der Animation aktualisiert
+                arrowOrigin,
+                20 * Math.abs(asymmetry),
+                asymmetry > 0 ? 0x0000ff : 0xff0000
+              );
+              arrowHelper.userData = { raCenter: raCenter, decCenter: decCenter, asymmetry: asymmetry };
+              scene.add(arrowHelper);
+              arrows.push(arrowHelper);
+            }
+          }
+        }
+      }
+    }
+
+    // Kamera-Position
+    camera.position.z = 1000;
+
+    // Animation
+    let time = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+
+      // Pulsieren der Ursprungspunkte
+      time += 0.05;
+      originPoint1.scale.set(1 + 0.2 * Math.sin(time), 1 + 0.2 * Math.sin(time), 1 + 0.2 * Math.sin(time));
+      originPoint2.scale.set(1 + 0.2 * Math.cos(time), 1 + 0.2 * Math.cos(time), 1 + 0.2 * Math.cos(time));
+
+      // Rotation der Ringe
+      ring1.rotation.z += 0.02;
+      ring2.rotation.z -= 0.02;
+
+      // Animierte Spin-Strömung
+      arrows.forEach(arrow => {
+        const { raCenter, decCenter, asymmetry } = arrow.userData;
+        const angle = 0.1 * asymmetry * Math.sin(time);
+        const arrowDir = new THREE.Vector3(
+          radius * Math.cos(decCenter) * Math.cos(raCenter + angle),
+          radius * Math.cos(decCenter) * Math.sin(raCenter + angle),
+          radius * Math.sin(decCenter)
+        );
+        arrow.setDirection(arrowDir.sub(arrow.position).normalize());
+        arrow.setLength(20 * Math.abs(asymmetry) * (1 + 0.2 * Math.sin(time)));
+      });
+
+      // Farbanimation für Drift-Effekt (abhängig von beiden Zentren)
+      galaxyMeshes.forEach(mesh => {
+        const dist1 = mesh.position.distanceTo(originPoint1.position);
+        const dist2 = mesh.position.distanceTo(originPoint2.position);
+        const factor1 = Math.sin(time + dist1 * 0.01);
+        const factor2 = Math.sin(time + dist2 * 0.01);
+        const color = mesh.userData.baseColor === 0x0000ff ? new THREE.Color(0x0000ff) : new THREE.Color(0xff0000);
+        const influence1 = 1 / (dist1 + 1);
+        const influence2 = 1 / (dist2 + 1);
+        const totalInfluence = influence1 + influence2;
+        const weight1 = influence1 / totalInfluence;
+        const weight2 = influence2 / totalInfluence;
+        const combinedFactor = weight1 * factor1 + weight2 * factor2;
+        color.lerp(new THREE.Color(0x888888), combinedFactor * 0.3);
+        mesh.material.color.set(color);
+      });
+
+      // Labels für Deep-Sky-Objekte aktualisieren
+      deepSkyMeshes.forEach(mesh => {
+        const vector = mesh.position.clone().project(camera);
+        const x = (vector.x + 1) / 2 * window.innerWidth;
+        const y = -(vector.y - 1) / 2 * window.innerHeight;
+        mesh.userData.label.style.left = x + 10 + 'px';
+        mesh.userData.label.style.top = y + 'px';
+      });
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Zoom-Funktion
+    function zoomToOrigin(center) {
+      const targetPosition = center === 1 ? originPoint1.position.clone().multiplyScalar(1.2) : originPoint2.position.clone().multiplyScalar(1.2);
+      const startPosition = camera.position.clone();
+      let t = 0;
+      const zoomAnimation = () => {
+        t += 0.02;
+        camera.position.lerpVectors(startPosition, targetPosition, t);
+        if (t < 1) requestAnimationFrame(zoomAnimation);
+      };
+      zoomAnimation();
+    }
+
+    // Filter-Funktion
+    function filterGalaxies(filter) {
+      galaxyMeshes.forEach(mesh => {
+        const spin = mesh.userData.spin;
+        if (filter === "all") {
+          mesh.visible = true;
+        } else if (filter === "clockwise") {
+          mesh.visible = spin === "clockwise";
+        } else if (filter === "counterclockwise") {
+          mesh.visible = spin === "counterclockwise";
+        }
+      });
+    }
+
+    // Modus-Wechsel
+    function toggleMode() {
+      isSimulationMode = !isSimulationMode;
+      currentGalaxies = isSimulationMode ? simulatedGalaxies : realGalaxies;
+      document.getElementById('mode-label').textContent = isSimulationMode ? "Simulation" : "Real Data";
+      loadGalaxies(currentGalaxies);
+    }
+
+    // Tooltip-Funktion
+    window.addEventListener('mousemove', onMouseMove);
+    function onMouseMove(event) {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects([...galaxyMeshes, ...deepSkyMeshes, originPoint1, originPoint2]);
+
+      if (intersects.length > 0) {
+        const intersected = intersects[0].object;
+        const data = intersected.userData;
+        if (data.id) {
+          tooltip.innerHTML = `ID: ${data.id}<br>Spin: ${data.spin}`;
+        } else if (data.name) {
+          tooltip.innerHTML = `Name: ${data.name}`;
+        }
+        tooltip.style.left = event.clientX + 10 + 'px';
+        tooltip.style.top = event.clientY + 10 + 'px';
+        tooltip.style.display = 'block';
+      } else {
+        tooltip.style.display = 'none';
+      }
+    }
+
+    function updateTheory() {
+      const select = document.getElementById("theory-select");
+      const descriptionDiv = document.getElementById("theory-description");
+      const theory = theories[select.value];
+      descriptionDiv.innerHTML = `${theory.description}<br><strong>Plausibilität:</strong> ${theory.plausibility}`;
+    }
+
+    // Fenstergröße anpassen
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
